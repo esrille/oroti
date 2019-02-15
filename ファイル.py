@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import sys
 
 # 主体: ファイル
 class ファイル:

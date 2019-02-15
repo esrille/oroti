@@ -523,7 +523,7 @@ if __name__ == '__main__':
         for line in file:
             lineno += 1
 
-            if line.startswith("ーー"):
+            if line.startswith("－－"):
                 continue
             line = emitter.escape(line)
             if line.startswith("ライブラリ:"):
@@ -621,7 +621,7 @@ if __name__ == '__main__':
                     if not line:
                         emitter.emit("print()")
                     else:
-                        assert line[-1]=='を', lineno
+                        assert line[-1] == 'を', lineno
                         values = line[:-1].split('、')
                         values = [dictionary.expression(x) for x in values]
                         emitter.emit("print(", ", ".join(values), ')')
@@ -647,7 +647,7 @@ if __name__ == '__main__':
                         emitter.raw(":\n")
                 elif line.endswith("ら、くりかえします"):
                     # while statement
-                    emitter.emitnb("while ")
+                    emitter.emitnb("while")
                     line = line[:-8].strip()
                     cond = line.split('、')
                     for p in cond:
