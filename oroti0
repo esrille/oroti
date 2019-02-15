@@ -4,7 +4,7 @@ if [ $# -lt 1 ]; then
 fi
 TARGET=${1##*/}
 TARGET=${TARGET%.oro}.py
-./oroti.py $1 > $TARGET
+./oroti0.py $1 > $TARGET
 chmod +x $TARGET
 shift
 ./$TARGET $@
