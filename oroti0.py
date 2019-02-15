@@ -406,7 +406,7 @@ class Dictionary:
         return left, right
 
     def parse_def(self, line):
-        assert line.endswith("、とは、"), 'parse_def'
+        assert line.endswith("、とは。"), 'parse_def'
         line = line[:-4].strip()
         assert self.subject == line[:len(self.subject)], 'syntax error: invalid method definition'
         line = line[len(self.subject):].strip()
@@ -499,7 +499,7 @@ if __name__ == '__main__':
                             if not line.startswith('#'):
                                 continue
                             line = line[1:].strip()
-                            if line.endswith("、とは、"):
+                            if line.endswith("、とは。"):
                                 method = dictionary.parse_def(line)
                                 dictionary.add_method(method[0], method)
                             elif line.startswith("主体:"):
@@ -509,7 +509,7 @@ if __name__ == '__main__':
                                 dictionary.properties.add(line)
             elif line.startswith("主体:"):
                 dictionary.set_subject(line[3:].strip())
-            elif line.endswith("、とは、"):
+            elif line.endswith("、とは。"):
                 method = dictionary.parse_def(line)
                 assert len(method[1]) == len(set(method[1])), lineno
                 dictionary.add_method(method[0], method)
@@ -588,7 +588,7 @@ if __name__ == '__main__':
                 emitter.emit("else:")
             elif line == "つぎへ。":
                 emitter.emit("continue")
-            elif line.endswith("、とは、"):
+            elif line.endswith("、とは。"):
                 method = dictionary.parse_def(line)
                 emitter.nl()
                 emitter.reset_mode()

@@ -16,21 +16,21 @@ class GPIO:
         RPi.GPIO.setmode(RPi.GPIO.BCM)
         RPi.GPIO.setup(pin, self.mode)
 
-    # GPIOを　ハイにします、とは、
+    # GPIOを　ハイにします、とは。
     def ハイにします(self):
         if self.mode == RPi.GPIO.IN:
             self.mode = RPi.GPIO.OUT
             RPi.GPIO.setup(self.pin, self.mode)
         RPi.GPIO.output(self.pin, RPi.GPIO.HIGH)
 
-    # GPIOを　ローにします、とは、
+    # GPIOを　ローにします、とは。
     def ローにします(self):
         if self.mode == RPi.GPIO.IN:
             self.mode = RPi.GPIO.OUT
             RPi.GPIO.setup(self.pin, self.mode)
         RPi.GPIO.output(self.pin, RPi.GPIO.LOW)
 
-    # GPIOが　ハイです、とは、
+    # GPIOが　ハイです、とは。
     def ハイです(self):
         if self.mode == RPi.GPIO.OUT:
             self.mode = RPi.GPIO.IN

@@ -8,12 +8,12 @@
 # 主体: ファイル
 class ファイル:
 
-    # ファイルを　ひらきます、とは、
+    # ファイルを　ひらきます、とは。
     # 引数: ファイル名
     def ひらきます(self, ファイル名):
         self.file = open(ファイル名)
 
-    # ファイルを　とじます、とは、
+    # ファイルを　とじます、とは。
     def とじます(self):
         self.file.close()
 
@@ -32,7 +32,7 @@ class プログラム:
     # 属性: 引数
     引数 = sys.argv
 
-    # プログラムを　おえます、とは、
+    # プログラムを　おえます、とは。
     # 引数: ステータス
     def おえます(self, ステータス=0):
         sys.exit(ステータス)
@@ -449,7 +449,7 @@ class 辞書:
         return 左がわ, 右がわ
 
     def 定義としてよみます(self, 行):
-        assert 行.endswith('、とは、')
+        assert 行.endswith('、とは。')
         行 = 行[:-4].strip()
         assert self.主体 == 行[:len(self.主体)]
         行 = 行[len(self.主体):]
@@ -546,7 +546,7 @@ for 行 in ソース:
                 if not 行.startswith('#'):
                     continue
                 行 = 行[1:].strip()
-                if 行.endswith('、とは、'):
+                if 行.endswith('、とは。'):
                     メソッド = 辞書.定義としてよみます(行)
                     辞書.定義します(メソッド[0], メソッド)
                 elif 行.startswith('主体:'):
@@ -560,7 +560,7 @@ for 行 in ソース:
     elif 行.startswith('主体:'):
         行 = 行[3:].strip()
         辞書.主体にします(行)
-    elif 行.endswith('、とは、'):
+    elif 行.endswith('、とは。'):
         メソッド = 辞書.定義としてよみます(行)
         assert len(メソッド[1]) == len(set(メソッド[1]))
         辞書.定義します(メソッド[0], メソッド)
@@ -638,7 +638,7 @@ for 行 in ソース:
         出力.おくりだします('else:')
     elif 行 == 'つぎへ。':
         出力.おくりだします('continue')
-    elif 行.endswith('、とは、'):
+    elif 行.endswith('、とは。'):
         メソッド = 辞書.定義としてよみます(行)
         出力.あけます(1)
         出力.モードをリセットします()
