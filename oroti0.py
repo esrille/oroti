@@ -219,7 +219,8 @@ class Dictionary:
 
     def set_subject(self, name):
         self.subject = name
-        self.classes.add(name)
+        if name:
+            self.classes.add(name)
 
     def add_method(self, name, method):
         # TODO: Check python methods first
