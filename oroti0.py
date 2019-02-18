@@ -463,6 +463,247 @@ python_methods = {
 }
 
 
+class Transpiler:
+
+    def enrich_dictionary(self, filename):
+        with open(filename, 'r') as file:
+            lineno = 0
+            for line in file:
+                lineno += 1
+                line = line.translate(tr).strip()
+                if line.startswith("ライブラリ:"):
+                    line = line[6:].strip()
+                    names = line.split('、')
+                    for name in names:
+                        dictionary.set_subject("")
+                        with open(name + '.py', 'r') as file:
+                            for line in file:
+                                if line.startswith('#!'):
+                                    continue
+                                if line.startswith('# -*- coding:'):
+                                    continue
+                                emitter.raw(line)
+                                line = line.translate(tr).strip()
+                                if not line.startswith('#'):
+                                    continue
+                                line = line[1:].strip()
+                                if line.endswith("、とは。"):
+                                    method = dictionary.parse_def(line)
+                                    dictionary.add_method(method[0], method)
+                                elif line.startswith("主体:"):
+                                    dictionary.set_subject(line[3:].strip())
+                                elif line.startswith("属性:"):
+                                    line = line[3:].strip()
+                                    dictionary.properties.add(line)
+                elif line.startswith("主体:"):
+                    dictionary.set_subject(line[3:].strip())
+                elif line.endswith("、とは。"):
+                    method = dictionary.parse_def(line)
+                    assert len(method[1]) == len(set(method[1])), lineno
+                    dictionary.add_method(method[0], method)
+
+    def translate_conditions(self, line):
+        cond = line.split('、')
+        for p in cond:
+            found = []
+            p = p.strip()
+            if p == 'または':
+                emitter.raw(" or")
+            elif p == 'そして':
+                emitter.raw(" and")
+            elif p.endswith("ましたら"):
+                p = p[:-4].strip() + "ます"
+                found = dictionary.lookup_method(p)
+            elif p.endswith("ませんでしたら"):
+                p = p[:-7].strip() + "ます"
+                found = dictionary.lookup_method(p)
+                emitter.raw(" not")
+            elif p.endswith("でしたら"):
+                p = p[:-4].strip()
+                emitter.raw(" ", dictionary.expression(p))
+            elif p.endswith("でないなら"):
+                p = p[:-5].strip()
+                emitter.raw(" not ", dictionary.expression(p))
+            if found:
+                emitter.raw(" ")
+                emitter.emit_call(found)
+                emitter.flush()
+
+    # Translate 「～ます。」
+    def translate_statement(self, line):
+        found = dictionary.lookup_method(line)
+        if found:
+            emitter.emit_indent()
+            if self.assertion:
+                emitter.raw("assert ")
+            emitter.emit_call(found)
+        elif line == "うちきります":
+            emitter.emit("break")
+        elif line.endswith("をかえします"):
+            line = line[:-6].strip()
+            values = line.split('、')
+            values = [dictionary.expression(x) for x in values]
+            emitter.emit("return ", ", ".join(values))
+        elif line.endswith("をうちだします"):
+            line = line[:-7].strip()
+            values = line.split('、')
+            values = [dictionary.expression(x) for x in values]
+            emitter.emit("print(", ", ".join(values), ", end='')")
+        elif line.endswith("おくりだします"):
+            line = line[:-7].strip()
+            if not line:
+                emitter.emit("print()")
+            else:
+                assert line[-1] == 'を', lineno
+                values = line[:-1].split('、')
+                values = [dictionary.expression(x) for x in values]
+                emitter.emit("print(", ", ".join(values), ')')
+        elif line.endswith("について、くりかえします"):
+            line = line[:-12].strip()
+            pos = line.find('それぞれの')
+            assert 0 <= pos, lineno
+            target = line[pos+5:].strip()
+            target = ", ".join(target.split('、'))
+            line = line[:pos].strip()
+            if line[-1] == 'の':
+                line = line[:-1].strip()
+                list = dictionary.expression(line)
+                emitter.emit("for ", target, " in ", list, ":")
+            else:
+                assert line.endswith("まして、"), lineno
+                line = line[:-4] + "ます"
+                found = dictionary.lookup_method(line)
+                assert found,  lineno
+                emitter.emitnb("for ", target, " in ")
+                emitter.emit_call(found)
+                emitter.flush()
+                emitter.raw(":\n")
+        elif line.endswith("ら、くりかえします"):
+            # while statement
+            emitter.emitnb("while")
+            line = line[:-8].strip()
+            self.translate_conditions(line)
+            emitter.raw(":\n")
+        elif line.endswith("にいれます"):
+            # assignment
+            line = line[:-5].strip()
+            pos = line.rfind("まして、")
+            if 0 <= pos:
+                target = dictionary.property_form(line[pos + 4:].strip())
+                line = line[:pos] + "ます"
+                subject = ''
+                if line.startswith("あたらしい") and line.endswith("をつくります"):
+                    subject = line[5:-6]
+                if subject in dictionary.classes:
+                    if subject in self.actor_subjects:
+                        self.actors.append(target)
+                    emitter.emit(target, " = ", subject, "()")
+                else:
+                    found = dictionary.lookup_method(line)
+                    assert found, lineno
+                    emitter.emitnb(target, " = ")
+                    emitter.emit_call(found)
+                    if emitter.flush():
+                        print()
+            else:
+                pair = dictionary.split(line, 'を')
+                emitter.emit(pair[1], " = ", dictionary.expression(pair[0]))
+
+    def translate(self, filename):
+        self.actor_subjects = set()
+        self.actors = []
+        with open(filename, 'r') as file:
+            lineno = 0
+            for line in file:
+                lineno += 1
+
+                if line.startswith("－－"):
+                    continue
+                line = emitter.escape(line)
+                if line.startswith("ライブラリ:"):
+                    continue
+                emitter.set(line)
+                line = line.strip()
+
+                if emitter.mode == 2:
+                    self.actor_subjects.add(dictionary.subject)
+
+                # Assertion
+                if line.startswith("チェック:"):
+                    line = line[5:].strip()
+                    self.assertion = True
+                else:
+                    self.assertion = False
+
+                # Statements
+                if line.startswith("主体:"):
+                    dictionary.set_subject(line[3:].strip())
+                    emitter.emit_subject(dictionary.subject)
+                elif line == "はじめに:":
+                    dictionary.set_subject('')
+                    emitter.reset()
+                    emitter.nl(2)
+                elif line.endswith("ら、"):
+                    # if statement
+                    emitter.emit_indent()
+                    if line.startswith("あるいは、"):
+                        emitter.raw("elif")
+                        line = line[5:].strip()
+                    else:
+                        emitter.raw("if")
+                    line = line[:-1].strip()
+                    self.translate_conditions(line)
+                    emitter.raw(":\n")
+                elif line == "そうでなければ、":
+                    emitter.emit("else:")
+                elif line == "つぎへ。":
+                    emitter.emit("continue")
+                elif line.endswith("、とは。"):
+                    method = dictionary.parse_def(line)
+                    emitter.nl()
+                    emitter.reset_mode()
+                    emitter.emitnb("def ", method[0], "(self")
+                    if method[2]:
+                        emitter.raw(', ', ", ".join(method[2]))
+                    emitter.raw("):\n")
+                elif line.endswith("ます。"):
+                    line = line[:-1].strip()
+                    self.translate_statement(line)
+                elif line.endswith("です。"):
+                    line = line[:-1].strip()
+                    if emitter.function_mode():
+                        line = line[:-2].strip()
+                        pair = dictionary.split(line, 'は')
+                        emitter.emit_argument(pair[0], pair[1])
+                    else:
+                        found = dictionary.lookup_method(line)
+                        assert method, lineno
+                        target = found[0]
+                        emitter.emit("return ", target, ".", found[1], "()")
+                elif line:
+                    line = dictionary.expression(line)
+                    if self.assertion:
+                        emitter.emit("assert ", line)
+                    else:
+                        emitter.emit(line)
+                else:
+                    emitter.nl()
+        if emitter.flush():
+            print()
+
+        emitter.reset()
+        if self.actors:
+            emitter.nl()
+            emitter.emit("while True:")
+            emitter.adjust(4)
+            for actor in self.actors:
+                emitter.emit(actor, ".default()")
+
+    def compile(self, filename):
+        self.enrich_dictionary(filename)
+        self.translate(filename)
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         sys.exit(0)
@@ -478,255 +719,7 @@ if __name__ == '__main__':
     for name, method in python_methods.items():
         dictionary.add_method(name, method)
 
-    # Populate the dictionary
-    with open(sys.argv[1], 'r') as file:
-        lineno = 0
-        for line in file:
-            lineno += 1
-            line = line.translate(tr).strip()
-            if line.startswith("ライブラリ:"):
-                line = line[6:].strip()
-                names = line.split('、')
-                for name in names:
-                    dictionary.set_subject("")
-                    with open(name + '.py', 'r') as file:
-                        for line in file:
-                            if line.startswith('#!'):
-                                continue
-                            if line.startswith('# -*- coding:'):
-                                continue
-                            emitter.raw(line)
-                            line = line.translate(tr).strip()
-                            if not line.startswith('#'):
-                                continue
-                            line = line[1:].strip()
-                            if line.endswith("、とは。"):
-                                method = dictionary.parse_def(line)
-                                dictionary.add_method(method[0], method)
-                            elif line.startswith("主体:"):
-                                dictionary.set_subject(line[3:].strip())
-                            elif line.startswith("属性:"):
-                                line = line[3:].strip()
-                                dictionary.properties.add(line)
-            elif line.startswith("主体:"):
-                dictionary.set_subject(line[3:].strip())
-            elif line.endswith("、とは。"):
-                method = dictionary.parse_def(line)
-                assert len(method[1]) == len(set(method[1])), lineno
-                dictionary.add_method(method[0], method)
-
-    actor_subjects = set()
-    actors = []
-
-    # Translate the program
-    with open(sys.argv[1], 'r') as file:
-        lineno = 0
-        for line in file:
-            lineno += 1
-
-            if line.startswith("－－"):
-                continue
-            line = emitter.escape(line)
-            if line.startswith("ライブラリ:"):
-                continue
-            emitter.set(line)
-            line = line.strip()
-
-            if emitter.mode == 2:
-                actor_subjects.add(dictionary.subject)
-
-            # Assertion
-            if line.startswith("チェック:"):
-                line = line[5:].strip()
-                assertion = True
-            else:
-                assertion = False
-
-            # Statements
-            if line.startswith("主体:"):
-                dictionary.set_subject(line[3:].strip())
-                emitter.emit_subject(dictionary.subject)
-            elif line == "はじめに:":
-                dictionary.set_subject('')
-                emitter.reset()
-                emitter.nl(2)
-            elif line.endswith("ら、"):
-                # if statement
-                emitter.emit_indent()
-                if line.startswith("あるいは、"):
-                    emitter.raw("elif")
-                    line = line[5:].strip()
-                else:
-                    emitter.raw("if")
-                line = line[:-1].strip()
-                cond = line.split('、')
-                for p in cond:
-                    found = []
-                    p = p.strip()
-                    if p == 'または':
-                        emitter.raw(" or")
-                    elif p == 'そして':
-                        emitter.raw(" and")
-                    elif p.endswith("ましたら"):
-                        p = p[:-4] + "ます"
-                        found = dictionary.lookup_method(p)
-                    elif p.endswith("ませんでしたら"):
-                        p = p[:-7] + "ます"
-                        found = dictionary.lookup_method(p)
-                        emitter.raw(" not")
-                    elif p.endswith("でしたら"):
-                        p = p[:-4].strip()
-                        emitter.raw(" ", dictionary.expression(p))
-                    elif p.endswith("でないなら"):
-                        p = p[:-5].strip()
-                        emitter.raw(" not ", dictionary.expression(p))
-                    if found:
-                        emitter.raw(" ")
-                        emitter.emit_call(found)
-                        emitter.flush()
-                emitter.raw(":\n")
-            elif line == "そうでなければ、":
-                emitter.emit("else:")
-            elif line == "つぎへ。":
-                emitter.emit("continue")
-            elif line.endswith("、とは。"):
-                method = dictionary.parse_def(line)
-                emitter.nl()
-                emitter.reset_mode()
-                emitter.emitnb("def ", method[0], "(self")
-                if method[2]:
-                    emitter.raw(', ', ", ".join(method[2]))
-                emitter.raw("):\n")
-            elif line.endswith("ます。"):
-                line = line[:-1].strip()
-                found = dictionary.lookup_method(line)
-                if found:
-                    emitter.emit_indent()
-                    if assertion:
-                        emitter.raw("assert ")
-                    emitter.emit_call(found)
-                elif line == "うちきります":
-                    emitter.emit("break")
-                elif line.endswith("をかえします"):
-                    line = line[:-6].strip()
-                    values = line.split('、')
-                    values = [dictionary.expression(x) for x in values]
-                    emitter.emit("return ", ", ".join(values))
-                elif line.endswith("をうちだします"):
-                    line = line[:-7].strip()
-                    values = line.split('、')
-                    values = [dictionary.expression(x) for x in values]
-                    emitter.emit("print(", ", ".join(values), ", end='')")
-                elif line.endswith("おくりだします"):
-                    line = line[:-7].strip()
-                    if not line:
-                        emitter.emit("print()")
-                    else:
-                        assert line[-1] == 'を', lineno
-                        values = line[:-1].split('、')
-                        values = [dictionary.expression(x) for x in values]
-                        emitter.emit("print(", ", ".join(values), ')')
-                elif line.endswith("について、くりかえします"):
-                    line = line[:-12].strip()
-                    pos = line.find('それぞれの')
-                    assert 0 <= pos, lineno
-                    target = line[pos+5:].strip()
-                    target = ", ".join(target.split('、'))
-                    line = line[:pos].strip()
-                    if line[-1] == 'の':
-                        line = line[:-1].strip()
-                        list = dictionary.expression(line)
-                        emitter.emit("for ", target, " in ", list, ":")
-                    else:
-                        assert line.endswith("まして、"), lineno
-                        line = line[:-4] + "ます"
-                        found = dictionary.lookup_method(line)
-                        assert found,  lineno
-                        emitter.emitnb("for ", target, " in ")
-                        emitter.emit_call(found)
-                        emitter.flush()
-                        emitter.raw(":\n")
-                elif line.endswith("ら、くりかえします"):
-                    # while statement
-                    emitter.emitnb("while")
-                    line = line[:-8].strip()
-                    cond = line.split('、')
-                    for p in cond:
-                        found = []
-                        p = p.strip()
-                        if p == 'または':
-                            emitter.raw(" or")
-                        elif p == 'そして':
-                            emitter.raw(" and")
-                        elif p.endswith("ましたら"):
-                            p = p[:-4].strip() + "ます"
-                            found = dictionary.lookup_method(p)
-                        elif p.endswith("ませんでしたら"):
-                            p = p[:-7].strip() + "ます"
-                            found = dictionary.lookup_method(p)
-                            emitter.raw(" not")
-                        elif p.endswith("でしたら"):
-                            p = p[:-4].strip()
-                            emitter.raw(" ", dictionary.expression(p))
-                        elif p.endswith("でないなら"):
-                            p = p[:-5].strip()
-                            emitter.raw(" not ", dictionary.expression(p))
-                        if found:
-                            emitter.raw(" ")
-                            emitter.emit_call(found)
-                            emitter.flush()
-                    emitter.raw(":\n")
-                elif line.endswith("にいれます"):
-                    # assignment
-                    line = line[:-5].strip()
-                    pos = line.rfind("まして、")
-                    if 0 <= pos:
-                        target = dictionary.property_form(line[pos + 4:].strip())
-                        line = line[:pos] + "ます"
-                        if line.startswith("あたらしい") and line.endswith("をつくります"):
-                            subject = line[5:-6]
-                            if subject in dictionary.classes:
-                                if subject in actor_subjects:
-                                    actors.append(target)
-                                emitter.emit(target, " = ", subject, "()")
-                                continue
-                        found = dictionary.lookup_method(line)
-                        assert found, lineno
-                        emitter.emitnb(target, " = ")
-                        emitter.emit_call(found)
-                        if emitter.flush():
-                            print()
-                    else:
-                        pair = dictionary.split(line, 'を')
-                        emitter.emit(pair[1], " = ", dictionary.expression(pair[0]))
-            elif line.endswith("です。"):
-                line = line[:-1].strip()
-                if emitter.function_mode():
-                    line = line[:-2].strip()
-                    pair = dictionary.split(line, 'は')
-                    emitter.emit_argument(pair[0], pair[1])
-                else:
-                    found = dictionary.lookup_method(line)
-                    assert method, lineno
-                    target = found[0]
-                    emitter.emit("return ", target, ".", found[1], "()")
-            elif line:
-                line = dictionary.expression(line)
-                if assertion:
-                    emitter.emit("assert ", line)
-                else:
-                    emitter.emit(line)
-            else:
-                emitter.nl()
-    if emitter.flush():
-        print()
-
-    emitter.reset()
-    if actors:
-        emitter.nl()
-        emitter.emit("while True:")
-        emitter.adjust(4)
-        for actor in actors:
-            emitter.emit(actor, ".default()")
+    tramspiler = Transpiler()
+    tramspiler.compile(sys.argv[1])
 
     sys.exit(0)
