@@ -62,7 +62,6 @@ class プログラム:
                    '0123456789:;!+-*/%<>&|^~=()[]{}',
                    '\n')
 
-
 class 出力:
 
     def __init__(self):
@@ -115,7 +114,7 @@ class 出力:
                 くぎり = ', '
             バッファー = バッファー + ')'
             バッファー = self.もどします(バッファー)
-            print(バッファー, end='')
+            print(バッファー, sep='', end='')
             self.メソッド名 = ''
             self.メソッド引数 = []
             self.キーワード引数 = {}
@@ -140,14 +139,14 @@ class 出力:
         self.改行数 = 0
         バッファー = ''.join(引数)
         バッファー = self.もどします(バッファー)
-        print(バッファー, end='')
+        print(バッファー, sep='', end='')
 
     def あけます(self, 行):
         if self.フラッシュします():
             print()
         if self.改行数 < 行:
             行 = 行 - self.改行数
-            print('\n' * 行, end='')
+            print('\n' * 行, sep='', end='')
             self.改行数 = self.改行数 + 行
 
     def 字さげします(self):
@@ -156,21 +155,27 @@ class 出力:
             self.モード = 2
             print()
             self.字さげします()
-            print('def default(self):')
+            print('def default(self):', sep='')
             self.インデント = self.インデント + 4
         if self.フラッシュします():
             print()
-        print(' ' * self.インデント, end='')
+        print(' ' * self.インデント, sep='', end='')
 
     def うちだします(self, *引数):
         self.字さげします()
         バッファー = ''.join(引数)
         バッファー = self.もどします(バッファー)
-        print(バッファー, end='')
+        print(バッファー, sep='', end='')
 
     def おくりだします(self, *引数):
         self.うちだします(*引数)
         print()
+
+    def そのままおくりだします(self, *引数):
+        print(' ' * self.インデント, sep='', end='')
+        バッファー = ''.join(引数)
+        バッファー = self.もどします(バッファー)
+        print(バッファー, sep='')
 
     def よびだしをだします(self, メソッド):
         if self.フラッシュします():
@@ -214,6 +219,10 @@ class 出力:
                 文字列 = ''
                 カッコ = ''
             else:
+                if 字 == "'" and カッコ == '」':
+                    文字列 = 文字列 + '\\'
+                elif 字 == '"' and カッコ  == '』':
+                    文字列 = 文字列 + '\\'
                 文字列 = 文字列 + 字
         return 結果
 
@@ -368,7 +377,6 @@ class 辞書:
         return ''
 
     # '[N1]の[N2]の[N3]...', カウント
-
     def 属性形2にします(self, 文字列):
         カウント = 0
         位置 = len(文字列)
@@ -480,12 +488,12 @@ class 辞書:
 
     def かきだします(self):
         一覧 = ' '.join(self.クラス一覧)
-        print('主体一覧: ', 一覧)
+        print('主体一覧: ', 一覧, sep='')
         一覧 = ' '.join(sorted(self.助詞一覧, key=lambda p: len(p), reverse=True))
-        print('助詞一覧: ', 一覧)
-        print('述語一覧:', end='')
+        print('助詞一覧: ', 一覧, sep='')
+        print('述語一覧:', sep='', end='')
         for なまえ, メソッド in self.メソッド集.items():
-            print(なまえ, メソッド)
+            print(なまえ, メソッド, sep='')
 
 
 class トランスパイラー:
@@ -593,7 +601,7 @@ class トランスパイラー:
                 値 = 辞書.式にします(値)
                 引数.append(値)
             引数 = ', '.join(引数)
-            出力.おくりだします('print(', 引数, ", end='')")
+            出力.おくりだします('print(', 引数, ", sep='', end='')")
         elif 行.endswith('おくりだします'):
             行 = 行[:-7].strip()
             if not 行:
@@ -606,7 +614,7 @@ class トランスパイラー:
                     値 = 辞書.式にします(値)
                     引数.append(値)
                 引数 = ', '.join(引数)
-                出力.おくりだします('print(', 引数, ')')
+                出力.おくりだします('print(', 引数, ', sep=\'\')')
         elif 行.endswith('について、くりかえします'):
             行 = 行[:-12].strip()
             位置 = 行.find('それぞれの')
@@ -734,7 +742,7 @@ class トランスパイラー:
                 if self.アサート:
                     出力.おくりだします('assert ', 行)
                 else:
-                    出力.おくりだします(行)
+                    出力.そのままおくりだします(行)
             else:
                 出力.あけます(1)
         ソース.とじます()
@@ -781,7 +789,6 @@ python_methods = {
     "いれかえます": ["translate", ['を', 'で'], ['table']],
     "値でみます": ["values", ['を'], []],
 }
-
 for なまえ, メソッド in python_methods.items():
     辞書.定義します(なまえ, メソッド)
 

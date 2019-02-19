@@ -136,6 +136,12 @@ class Emitter:
         self.emitnb(*args)
         print()
 
+    def pass_through(self, *args):
+        print(' ' * self.indent, sep='', end='')
+        buffer = ''.join(args)
+        buffer = self.unescape(buffer)
+        print(buffer)
+
     def emit_call(self, method):
         if self.flush():
             print()
@@ -177,6 +183,10 @@ class Emitter:
                 s = ''
                 d = ''
             else:
+                if c == "'" and d == '」':
+                    s += '\\'
+                elif  c == '"' and d == '』':
+                    s += '\\'
                 s += c
         return l
 
@@ -548,7 +558,7 @@ class Transpiler:
             line = line[:-7].strip()
             values = line.split('、')
             values = [dictionary.expression(x) for x in values]
-            emitter.emit("print(", ", ".join(values), ", end='')")
+            emitter.emit("print(", ", ".join(values), ", sep='', end='')")
         elif line.endswith("おくりだします"):
             line = line[:-7].strip()
             if not line:
@@ -557,7 +567,7 @@ class Transpiler:
                 assert line[-1] == 'を'
                 values = line[:-1].split('、')
                 values = [dictionary.expression(x) for x in values]
-                emitter.emit("print(", ", ".join(values), ')')
+                emitter.emit("print(", ", ".join(values), ", sep='')")
         elif line.endswith("について、くりかえします"):
             line = line[:-12].strip()
             pos = line.find('それぞれの')
@@ -685,7 +695,7 @@ class Transpiler:
                     if self.assertion:
                         emitter.emit("assert ", line)
                     else:
-                        emitter.emit(line)
+                        emitter.pass_through(line)
                 else:
                     emitter.nl()
         if emitter.flush():
