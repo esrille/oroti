@@ -499,7 +499,7 @@ class Transpiler:
                     dictionary.set_subject(line[3:].strip())
                 elif line.endswith("、とは。"):
                     method = dictionary.parse_def(line)
-                    assert len(method[1]) == len(set(method[1])), lineno
+                    assert len(method[1]) == len(set(method[1]))
                     dictionary.add_method(method[0], method)
 
     def translate_conditions(self, line):
@@ -554,14 +554,14 @@ class Transpiler:
             if not line:
                 emitter.emit("print()")
             else:
-                assert line[-1] == 'を', lineno
+                assert line[-1] == 'を'
                 values = line[:-1].split('、')
                 values = [dictionary.expression(x) for x in values]
                 emitter.emit("print(", ", ".join(values), ')')
         elif line.endswith("について、くりかえします"):
             line = line[:-12].strip()
             pos = line.find('それぞれの')
-            assert 0 <= pos, lineno
+            assert 0 <= pos
             target = line[pos+5:].strip()
             target = ", ".join(target.split('、'))
             line = line[:pos].strip()
@@ -570,10 +570,10 @@ class Transpiler:
                 list = dictionary.expression(line)
                 emitter.emit("for ", target, " in ", list, ":")
             else:
-                assert line.endswith("まして、"), lineno
+                assert line.endswith("まして、")
                 line = line[:-4] + "ます"
                 found = dictionary.lookup_method(line)
-                assert found,  lineno
+                assert found
                 emitter.emitnb("for ", target, " in ")
                 emitter.emit_call(found)
                 emitter.flush()
@@ -600,7 +600,7 @@ class Transpiler:
                     emitter.emit(target, " = ", subject, "()")
                 else:
                     found = dictionary.lookup_method(line)
-                    assert found, lineno
+                    assert found
                     emitter.emitnb(target, " = ")
                     emitter.emit_call(found)
                     if emitter.flush():
@@ -677,7 +677,7 @@ class Transpiler:
                         emitter.emit_argument(pair[0], pair[1])
                     else:
                         found = dictionary.lookup_method(line)
-                        assert method, lineno
+                        assert method
                         target = found[0]
                         emitter.emit("return ", target, ".", found[1], "()")
                 elif line:
